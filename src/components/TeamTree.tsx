@@ -1,10 +1,29 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Users, Folder, FileText, Star, GitFork, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ChevronRight, ChevronDown, Users, Folder, Star, GitFork, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import type { Team, Project, Version } from '@/types';
+import { useApp } from '@/context/AppContext';
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
 
 interface VersionRowProps { version: Version; }
 function VersionRow({ version }: VersionRowProps) {
   const [hovered, setHovered] = useState(false);
+  const { loadVersion } = useApp();
+  const displayDate = version.created_at ? timeAgo(version.created_at) : version.date ?? '';
+
   return (
     <div
       className={`version-row ${hovered ? 'hovered' : ''}`}
@@ -18,10 +37,10 @@ function VersionRow({ version }: VersionRowProps) {
       </span>
       <span className="ver-tag">{version.tag}</span>
       <span className="ver-label">{version.label}</span>
-      {version.date && <span className="ver-date">{version.date}</span>}
+      {displayDate && <span className="ver-date">{displayDate}</span>}
       {hovered && (
         <div className="ver-actions">
-          <button className="ver-btn"><Eye size={10}/> View</button>
+          <button className="ver-btn" onClick={() => loadVersion(version.id)}><Eye size={10}/> View</button>
           <button className="ver-btn fork"><GitFork size={10}/> Fork</button>
         </div>
       )}

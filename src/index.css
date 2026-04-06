@@ -692,3 +692,7 @@ a      { color: inherit; text-decoration: none; }
   padding: 1px 6px; border-radius: 3px;
 }
 .status-item.live { color: var(--green); }
+
+/* ─── SPINNER ─── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
