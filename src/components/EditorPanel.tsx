@@ -6,24 +6,21 @@ import {
 import { useApp } from '@/context/AppContext';
 
 /* ── Syntax Highlighting ── */
-const KEYWORDS = /\b(import|export|default|from|const|let|var|function|return|if|else|for|while|class|extends|interface|type|async|await|new|this|void|null|undefined|true|false|in|of|as|typeof|keyof|implements|readonly)\b/g;
+const KEYWORDS = /\b(import|export|default|from|const|let|var|function|return|if|else|for|while|class|extends|interface|type|async|await|new|this|void|null|undefined|true|false|in|of|as|typeof|keyof|implements|readonly|package|func|select|case|struct|map|chan|make|go|use|fn|pub|mod|mut|impl|match|loop|resource|provider|data|module)\b/g;
 const STRINGS = /(["'`])(?:(?!\1)[^\\]|\\.)*\1/g;
-const COMMENTS = /(\/\/.*|\/\*[\s\S]*?\*\/)/g;
 const JSX_TAGS = /(<\/?[A-Z][A-Za-z0-9.]*|<\/?[a-z][a-z0-9-]*)/g;
 const NUMBERS = /\b(\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw)?)\b/g;
 const TYPES_RE = /\b([A-Z][A-Za-z0-9]*)\b/g;
 
 function highlight(line: string): React.ReactNode {
-  if (line.trim().startsWith('//') || line.trim().startsWith('*') || line.trim().startsWith('/*')) {
+  if (line.trim().startsWith('//') || line.trim().startsWith('*') || line.trim().startsWith('/*') || line.trim().startsWith('#')) {
     return <span style={{ color: '#4a6278', fontStyle: 'italic' }}>{line}</span>;
   }
   const parts: React.ReactNode[] = [];
-  let rest = line;
   let key = 0;
 
   function push(text: string) {
     if (!text) return;
-    // simple multi-pass coloring
     const colored = text
       .replace(KEYWORDS, m => `\x00k${m}\x01`)
       .replace(TYPES_RE, m => `\x00t${m}\x01`)
@@ -41,11 +38,11 @@ function highlight(line: string): React.ReactNode {
       else parts.push(<span key={key++}>{tok}</span>);
     });
   }
-  push(rest);
+  push(line);
   return <>{parts}</>;
 }
 
-const CODE_SAMPLE = [
+const DEFAULT_CODE = [
   `import React, { useState, useEffect } from 'react';`,
   `import { useApp } from '@/context/AppContext';`,
   `import type { Collaborator, Tab } from '@/types';`,
@@ -78,7 +75,7 @@ const CODE_SAMPLE = [
 
 /* ── Welcome Screen ── */
 function WelcomeView() {
-  const { setViewMode, openFile } = useApp();
+  const { openFile } = useApp();
 
   function handleOpen() {
     openFile({ id: 'App.tsx', name: 'App.tsx', ext: 'tsx', sz: '4.2 KB', m: '2m ago' });
@@ -135,7 +132,7 @@ function WelcomeView() {
           <button className="btn-primary" onClick={handleOpen}>
             <FolderOpen size={14}/> Open Project
           </button>
-          <button className="btn-ghost" onClick={() => setViewMode('editor')}>
+          <button className="btn-ghost" onClick={() => {}}>
             <Plus size={14}/> Create New Project
           </button>
         </div>
@@ -150,15 +147,78 @@ function WelcomeView() {
   );
 }
 
+/* ── Save Modal ── */
+function SaveModal({ onSave, onCancel }: { onSave: (tag: string, label: string) => void; onCancel: () => void }) {
+  const [tag, setTag] = useState('');
+  const [label, setLabel] = useState('');
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }} onClick={onCancel}>
+      <div style={{
+        background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8,
+        padding: 20, width: 320,
+      }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ color: 'var(--text0)', fontSize: 13, marginBottom: 12 }}>Save New Version</h3>
+        <input
+          placeholder="Version tag (e.g. v1.0.0)"
+          value={tag}
+          onChange={e => setTag(e.target.value)}
+          style={{
+            width: '100%', padding: '8px 10px', background: 'var(--bg1)', border: '1px solid var(--border)',
+            borderRadius: 6, color: 'var(--text0)', fontSize: 12, marginBottom: 8, outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+        <input
+          placeholder="Label (e.g. Bug fix, Feature)"
+          value={label}
+          onChange={e => setLabel(e.target.value)}
+          style={{
+            width: '100%', padding: '8px 10px', background: 'var(--bg1)', border: '1px solid var(--border)',
+            borderRadius: 6, color: 'var(--text0)', fontSize: 12, marginBottom: 14, outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{
+            padding: '6px 14px', background: 'var(--bg3)', border: '1px solid var(--border)',
+            borderRadius: 6, color: 'var(--text1)', fontSize: 11, cursor: 'pointer',
+          }}>Cancel</button>
+          <button
+            disabled={!tag.trim()}
+            onClick={() => { if (tag.trim()) onSave(tag.trim(), label.trim()); }}
+            style={{
+              padding: '6px 14px', background: tag.trim() ? '#2dd4bf' : 'var(--bg4)',
+              border: 'none', borderRadius: 6,
+              color: tag.trim() ? '#07090f' : 'var(--text2)',
+              fontSize: 11, fontWeight: 600, cursor: tag.trim() ? 'pointer' : 'not-allowed',
+            }}
+          >Save Version</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Editor View ── */
 function EditorView() {
-  const { tabs, activeTabId, closeTab, setActiveTab, chatOpen, toggleChat, messages, sendMessage, collaborators } = useApp();
+  const {
+    tabs, activeTabId, closeTab, setActiveTab, chatOpen, toggleChat,
+    messages, sendMessage, collaborators, editorContent, setEditorContent, saveVersion,
+  } = useApp();
   const activeTab = tabs.find(t => t.id === activeTabId);
   const [inputMsg, setInputMsg] = useState('');
   const [cursorPos] = useState({ line: 12, col: 24 });
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  // Use editorContent from context if available, else fall back to DEFAULT_CODE
+  const codeLines = editorContent ? editorContent.split('\n') : DEFAULT_CODE;
 
   function handleSend() {
     if (!inputMsg.trim()) return;
@@ -166,8 +226,26 @@ function EditorView() {
     setInputMsg('');
   }
 
+  function handleSave() {
+    if (activeTab?.fileId) {
+      setShowSaveModal(true);
+    }
+  }
+
+  function handleSaveConfirm(tag: string, label: string) {
+    saveVersion(tag, label);
+    setShowSaveModal(false);
+  }
+
+  // Determine version tag for display
+  const versionTag = activeTab?.name?.startsWith('v') ? activeTab.name : 'v3.2.1';
+
   return (
     <div className="editor-view">
+      {showSaveModal && (
+        <SaveModal onSave={handleSaveConfirm} onCancel={() => setShowSaveModal(false)} />
+      )}
+
       {/* Tab bar */}
       <div className="tab-bar">
         <div className="tabs-list">
@@ -179,7 +257,7 @@ function EditorView() {
             >
               <span className="tab-dot" style={{ background: TAB_COLORS[tab.ext] ?? '#64748b' }}/>
               <span>{tab.name}</span>
-              {tab.isDirty && <span className="tab-dirty">●</span>}
+              {tab.isDirty && <span className="tab-dirty">\u25cf</span>}
               <span className="tab-close" onClick={e => { e.stopPropagation(); closeTab(tab.id); }}>
                 <X size={10}/>
               </span>
@@ -205,14 +283,14 @@ function EditorView() {
         <div className="info-bar">
           <div className="info-left">
             <GitBranch size={11}/><span className="info-branch">main</span>
-            <span className="info-sep">›</span>
+            <span className="info-sep">\u203a</span>
             <span className="info-file">{activeTab.name}</span>
             <span className="lang-tag">{activeTab.ext.toUpperCase()}</span>
-            <span className="info-meta">v3.2.1</span>
+            <span className="info-meta">{versionTag}</span>
           </div>
           <div className="info-right">
-            <span className="info-meta">{CODE_SAMPLE.length} lines</span>
-            <button className="save-btn"><Save size={10}/> Save</button>
+            <span className="info-meta">{codeLines.length} lines</span>
+            <button className="save-btn" onClick={handleSave}><Save size={10}/> Save</button>
           </div>
         </div>
       )}
@@ -222,7 +300,7 @@ function EditorView() {
         {/* Code area */}
         <div className={`code-area ${chatOpen ? 'chat-open' : ''}`}>
           <div className="code-scroll">
-            {CODE_SAMPLE.map((line, i) => {
+            {codeLines.map((line, i) => {
               const lineNum = i + 1;
               const collab = collaborators.find(c => c.line === lineNum);
               return (
@@ -250,7 +328,7 @@ function EditorView() {
             <div className="chat-header">
               <MessageSquare size={11}/>
               <span>Team Chat</span>
-              <span className="chat-live">● LIVE</span>
+              <span className="chat-live">\u25cf LIVE</span>
             </div>
             <div className="chat-messages">
               {messages.map((msg, i) => (
@@ -268,10 +346,10 @@ function EditorView() {
               <input
                 value={inputMsg}
                 onChange={e => setInputMsg(e.target.value)}
-                placeholder="Message…"
+                placeholder="Message\u2026"
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
               />
-              <button onClick={handleSend}>↑</button>
+              <button onClick={handleSend}>\u2191</button>
             </div>
           </div>
         )}
@@ -296,6 +374,7 @@ function EditorView() {
 const TAB_COLORS: Record<string, string> = {
   tsx: '#2dd4bf', ts: '#3b82f6', js: '#fbbf24', css: '#a78bfa',
   json: '#fb923c', html: '#ef4444', md: '#94a3b8',
+  go: '#06b6d4', py: '#84cc16', tf: '#8b5cf6', rs: '#fb923c',
 };
 
 export default function EditorPanel() {

@@ -12,23 +12,28 @@ export interface FileNode {
 
 /* ─── CLOUD / TEAMS ─── */
 export interface Version {
-  id: string;
+  id: number;
   tag: string;
   label: string;
   stable: boolean;
+  content: string;
+  file_id: number;
+  created_by: number | null;
+  created_at: string;
   date?: string;
 }
 
 export interface Project {
-  id: string;
+  id: number;
   name: string;
   lang: string;
   stars: number;
+  team_id: number;
   versions: Version[];
 }
 
 export interface Team {
-  id: string;
+  id: number;
   name: string;
   color: string;
   members: number;
@@ -43,6 +48,9 @@ export interface Tab {
   sz?: string;
   m?: string;
   isDirty?: boolean;
+  content?: string;
+  fileId?: number;
+  versionId?: number;
 }
 
 export interface Collaborator {

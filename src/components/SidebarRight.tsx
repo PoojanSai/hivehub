@@ -1,8 +1,13 @@
-import { Upload, Cloud } from 'lucide-react';
+import { Upload, Cloud, Loader2 } from 'lucide-react';
 import TeamTree from './TeamTree';
-import { TEAMS } from '@/data/teams';
+import { useApp } from '@/context/AppContext';
 
 export default function SidebarRight() {
+  const { teams, teamsLoading } = useApp();
+
+  const totalProjects = teams.reduce((a, t) => a + t.projects.length, 0);
+  const totalVersions = teams.reduce((a, t) => a + t.projects.reduce((b, p) => b + p.versions.length, 0), 0);
+
   return (
     <aside className="sidebar sidebar-right">
       {/* Header */}
@@ -20,22 +25,28 @@ export default function SidebarRight() {
       {/* Stats row */}
       <div className="cloud-stats">
         <div className="cloud-stat">
-          <span className="stat-num">{TEAMS.length}</span>
+          <span className="stat-num">{teams.length}</span>
           <span className="stat-label">Teams</span>
         </div>
         <div className="cloud-stat">
-          <span className="stat-num">{TEAMS.reduce((a, t) => a + t.projects.length, 0)}</span>
+          <span className="stat-num">{totalProjects}</span>
           <span className="stat-label">Projects</span>
         </div>
         <div className="cloud-stat">
-          <span className="stat-num">{TEAMS.reduce((a, t) => a + t.projects.reduce((b, p) => b + p.versions.length, 0), 0)}</span>
+          <span className="stat-num">{totalVersions}</span>
           <span className="stat-label">Versions</span>
         </div>
       </div>
 
       {/* Tree */}
       <div className="sidebar-scroll">
-        <TeamTree teams={TEAMS}/>
+        {teamsLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0', opacity: 0.5 }}>
+            <Loader2 size={18} className="spin"/>
+          </div>
+        ) : (
+          <TeamTree teams={teams}/>
+        )}
       </div>
 
       {/* Footer */}
